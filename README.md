@@ -56,9 +56,9 @@ The demonstrator is improved step by step. Each question below is answered by a 
 |---|---|---|---|
 | Q1 | Does grounding concept evaluation in the team's knowledge base make it more traceable and more correct than a single prompt? | scores citing evidence; consistency with the knowledge base (LLM judge) | yes: 0.80-1.00 vs 0.00 cited, 0.63-0.68 vs 0.53 consistent |
 | Q2 | Does set-based narrowing stop the tool from repeating documented failures? | known failed concepts proposed / eliminated with a reason / recommended | yes: active cancellation eliminated with a cited post-mortem every time it was proposed |
-| Q3 | Is the final set feasible, and are the eliminations correct? | answer key: infeasible concepts in final set, correct and false eliminations | **not yet**: 1.0-1.67 infeasible concepts per final set of 2 (baseline 1.0); 1 false elimination per experiment |
+| Q3 | Is the final set feasible, and are the eliminations correct? | answer key: infeasible concepts in final set, correct and false eliminations | v1/v2: no, 1.0-1.67 infeasible concepts per final set (baseline 1.0-1.3). **v3: yes, 0 infeasible concepts in any final set**, but 2 feasible concepts wrongly dropped in one run |
 | Q4 | Does requiring a citation for every score raise grounding without making the scores less correct? | v2 vs v1: grounding and consistency | yes: grounding 0.80 to 1.00, consistency 0.63 to 0.68 |
-| Q5 | Does a separate must-check step with worked comparisons remove false eliminations and infeasible survivors? | v3 vs v1: answer-key metrics | open |
+| Q5 | Does a separate must-check step with worked comparisons remove false eliminations and infeasible survivors? | v3 vs v1: answer-key metrics | infeasible survivors: yes (1.67 to 0). False eliminations: not yet; the remaining errors are a wrongly cited post-mortem and reading a 40-60 % range at its worst end |
 | Q6 | Does a bigger local model fix the must-check errors, or does the method matter more than model size? | v3 with `qwen2.5:7b` vs `qwen2.5:14b`, and v1 with 14B if needed | open |
 | Q7 | What does the structure cost? | LLM calls, retries, generated tokens and time per run | about 17 calls and 6-7x the time of a single prompt (370-390 s vs 56 s per run), no JSON retries |
 
@@ -93,37 +93,41 @@ and never looked up the evidence behind some requirements, so concepts that fail
 
 ## Results
 
-### v1 and v2 (`qwen2.5:7b`, Colab T4, 3 runs per method, same seeds)
+### v1, v2 and v3 (`qwen2.5:7b`, Colab T4, 3 runs per method, same seeds)
 
-The baseline gives identical answers in both experiments (same seeds), and SBCE generated the same concept sets
-in runs 2 and 3, so v1 vs v2 isolates the effect of required citations. Answer-key rows were scored from the
-decision logs with `eval/answer_key.yaml`; baseline concepts that match no key entry are left unclassified.
+The same seeds are used in every experiment, so the baseline and the generated concept sets are mostly the same
+and the versions differ in the method only. v1 and v2 answer-key rows were scored from the decision logs with
+`eval/answer_key.yaml`; v3 was scored automatically with the same key.
 
-| Metric | SBCE v1 | SBCE v2 | Single prompt |
-|---|---|---|---|
-| Concept diversity | 0.29 ± 0.02 | 0.28 ± 0.01 | 0.24 ± 0.02 |
-| Scores citing evidence | 0.80 ± 0.11 | **1.00 ± 0.00** | 0.00 |
-| Consistent with knowledge base (LLM judge) | 0.63 ± 0.06 | **0.68 ± 0.03** | 0.53 ± 0.03 |
-| Active cancellation eliminated with a cited post-mortem | 3 of 3 runs | 2 of 2 runs where proposed | - |
-| Feasible concepts in final set (mean of 2) | 0.33 | 0.67 | 0.00 |
-| Infeasible concepts in final set (mean of 2) | 1.67 | 1.00 | 1.00 |
-| False eliminations (total over 3 runs) | 1 | 1 | - |
-| LLM calls per run | 17.3 | 17.7 | 1 |
-| Generated tokens per run | 10 900 | 11 700 | 1 700 |
-| Time per run without judging (s) | 370 ± 45 | 390 ± 67 | 56 ± 6 |
+| Metric | SBCE v1 | SBCE v2 | SBCE v3 | Single prompt |
+|---|---|---|---|---|
+| Concept diversity | 0.29 ± 0.02 | 0.28 ± 0.01 | 0.29 ± 0.04 | 0.24-0.25 |
+| Scores citing evidence | 0.80 ± 0.11 | 1.00 ± 0.00 | 0.99 ± 0.02 | 0.00 |
+| Consistent with knowledge base (LLM judge) | 0.63 ± 0.06 | 0.68 ± 0.03 | 0.68 ± 0.03 | 0.52-0.53 |
+| Active cancellation eliminated with a cited post-mortem | every time proposed | every time proposed | every time proposed | - |
+| Feasible concepts in final set (mean of 2) | 0.33 | 0.67 | **1.00** | 0.00 |
+| Infeasible concepts in final set (mean of 2) | 1.67 | 1.00 | **0.00** | 1.0-1.3 |
+| False eliminations (total over 3 runs) | 1 | 1 | 2 (both in one run) | - |
+| LLM calls per run | 17.3 | 17.7 | 19.3 | 1 |
+| Time per run without judging (s) | 370 ± 45 | 390 ± 67 | 293 ± 79 | 56 ± 6 |
 
 What this shows:
-- Retrieval plus required citations makes every score traceable and raises consistency with the knowledge
-  base from 0.53 to 0.68 (Q1, Q4: requiring citations did not make the scores less correct).
-- Documented failures are caught: active cancellation was eliminated with a cited post-mortem every time.
-- The final set is still often infeasible (Q3). Handle geometry (5-10 % reduction, the brief needs about 47 %)
-  and natural-rubber mounts (fail at -15 degC) survive because the must check never flags them, and the
-  7B model twice misjudged numbers ("0.5 kg is slightly above the 0.6 kg limit"). This motivates v3.
-- The structure costs about 17 LLM calls and 6-7 times the time of a single prompt.
+- **Grounding (Q1, Q4):** retrieval plus required citations makes every score traceable and raises consistency
+  with the knowledge base from 0.53 to 0.68, without making the scores less correct.
+- **Knowledge reuse (Q2):** active cancellation was eliminated with a cited post-mortem every time it was proposed.
+- **Feasibility (Q3, Q5):** with the separate must-check step, no infeasible concept reached a final set
+  (v1: 1.67 of 2). Natural-rubber mounts were dropped for the -15 degC requirement and handle geometry for the
+  vibration limit, both with the right reason. The single prompt recommended 1-1.3 infeasible concepts per run.
+- **Remaining errors:** in one run the model dropped silicone mounts by citing the *ballast* post-mortem (evidence
+  about a different concept) and read steel springs' 40-60 % reduction at its worst end (4.5 m/s2) instead of
+  "unclear". Some worked comparisons contain arithmetic slips even when the verdict is right
+  ("70 % lower than 7.5 is 4.5"). The worked fields make these errors visible in the decision log.
+- **Cost (Q7):** about 19 LLM calls and 5 times the time of a single prompt.
 
-### v3 and model size
+### Model size
 
-_Pending: `sbce compare --out results_v3`, then the same with `qwen2.5:14b`._
+_Next (Q6): v3 with `qwen2.5:14b` on the same GPU, to see whether a bigger model removes the remaining
+attribution and arithmetic errors._
 
 ## Run it
 
