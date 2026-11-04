@@ -1,6 +1,8 @@
 """Data models shared by the pipeline. The LLM must return JSON that validates against these."""
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -57,6 +59,21 @@ class StrictCriterionScore(CriterionScore):
 
 class StrictEvaluation(Evaluation):
     scores: list[StrictCriterionScore]  # pyright: ignore[reportIncompatibleVariableOverride]
+
+
+class MustAssessment(BaseModel):
+    """One must requirement checked as a worked comparison, so number mistakes become visible."""
+    requirement: str
+    evidence_value: str = Field(description="what the evidence says for this concept, with numbers and units, "
+                                            "or 'not covered'")
+    limit: str = Field(description="the limit in the requirement, with number and unit")
+    comparison: str = Field(description="explicit comparison, e.g. '0.25 kg is below the 0.6 kg limit'")
+    status: Literal["met", "violated", "unclear"]
+    evidence_ids: list[str] = Field(default_factory=list)
+
+
+class MustReview(BaseModel):
+    checks: list[MustAssessment]
 
 
 class Elimination(BaseModel):

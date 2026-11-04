@@ -39,6 +39,8 @@ sbce:
   top_k_round: 3                # new evidence chunks per concept per round
   dedupe_similarity: 0.92       # drop near-duplicate concepts (cosine of embeddings)
   require_citations: false      # true = every score must cite at least one knowledge-base chunk (version 2)
+  must_check: inline            # inline = musts checked inside the evaluation (v1/v2); separate = own step (v3)
+  top_k_must: 2                 # evidence chunks retrieved per must requirement in the separate step
 
 experiment:
   repeats: 3                    # runs of each method for the comparison

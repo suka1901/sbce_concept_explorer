@@ -25,13 +25,17 @@ design brief ─▶ scout ─▶ generate a SET of concepts ─▶ evaluate (sco
    reciprocal rank fusion) collects evidence from the knowledge base.
 2. **Generate**: several concepts with clearly different working principles; near-duplicates are removed by
    embedding similarity.
-3. **Evaluate**: each concept gets a pessimistic and optimistic score per criterion, with cited chunk ids, and
-   a check of every must requirement. Citations to chunks the model was not shown are removed.
-4. **Narrow (SBCE)**: a concept is eliminated only if it violates a must requirement *and cites evidence for it*,
+3. **Evaluate**: each concept gets a pessimistic and optimistic score per criterion, with cited chunk ids.
+   Citations to chunks the model was not shown are removed.
+4. **Must check**: every must requirement is checked against evidence retrieved for that concept *and that
+   requirement*, as a worked comparison (value from the evidence, limit, comparison, verdict), so a wrong
+   comparison is visible in the decision log. A violation needs a value from the evidence; missing evidence
+   only gives "unclear".
+5. **Narrow (SBCE)**: a concept is eliminated only if it violates a must requirement *and cites evidence for it*,
    or if its optimistic weighted score is below another concept's pessimistic score. Otherwise it stays.
-5. **Learning loop**: for each surviving concept, new evidence aimed at its most uncertain criterion is retrieved
+6. **Learning loop**: for each surviving concept, new evidence aimed at its most uncertain criterion is retrieved
    and the concept is re-evaluated. Repeats until the target set size or the round limit.
-6. **Output**: the recommended set and a decision log showing every score, elimination and the evidence behind it.
+7. **Output**: the recommended set and a decision log showing every score, elimination and the evidence behind it.
 
 ## The demo case
 
@@ -42,6 +46,19 @@ The knowledge base (`data/knowledge/`) is **written for the demo** and imitates 
 concept notes, test notes, a cold-weather field report, cost data, and **post-mortems of two stopped projects**
 (active vibration cancellation and added ballast mass). Numbers are illustrative. Add your own Markdown files;
 every `##` section becomes a retrievable chunk.
+
+## Versions
+
+The method was improved in steps, and each step is a setting in `config.yaml`, so every version can be rerun:
+
+| Version | `require_citations` | `must_check` | What changed |
+|---|---|---|---|
+| v1 | false | inline | first version: musts checked inside the evaluation |
+| v2 | true | inline | every score must cite at least one chunk |
+| v3 | true | separate | must requirements checked in their own step with worked comparisons |
+
+v1 results showed why v3 was needed: the model compared numbers wrongly ("0.25 kg is above the 0.6 kg limit")
+and never looked up the evidence behind some requirements, so concepts that fail in the cold stayed in the set.
 
 ## Evaluation
 
@@ -55,6 +72,8 @@ every `##` section becomes a retrievable chunk.
 | Known failed concepts in final recommendation | does the method recommend a concept the post-mortems document as failed? (`eval/known_lessons.yaml`) |
 | Known failed concepts eliminated with a reason | knowledge reuse: proposed, then dropped with evidence |
 | Eliminations with reason and evidence | traceability of the narrowing |
+| Feasible / infeasible concepts in final set | checked against `eval/answer_key.yaml`, a hand-written judgement of which concept types can meet the must requirements according to the knowledge base |
+| Correct / false eliminations | infeasible concepts dropped / feasible concepts wrongly dropped (same answer key) |
 | LLM calls and time | cost of the extra structure |
 
 ## Results
@@ -77,6 +96,7 @@ pip install -e .
 sbce check                       # Ollama running, models present?
 sbce run                         # one run -> results/decision_log.md
 sbce compare --repeats 3         # both methods, 3 runs each -> results/summary.md
+sbce summary --out results       # rebuild summary.md from results/raw_results.json
 ```
 
 Settings (model, criteria and weights, number of concepts, rounds, set size) are in `config.yaml`.
@@ -85,14 +105,14 @@ Settings (model, criteria and weights, number of concepts, rounds, set size) are
 
 ```bash
 pip install -r requirements-dev.txt
-pytest          # 32 tests, offline: a deterministic fake LLM replaces Ollama
+pytest          # 45 tests, offline: a deterministic fake LLM replaces Ollama
 pyright         # type check
 ```
 
 The tests cover the retrieval (BM25, rank fusion, chunking), the SBCE narrowing rule (no elimination without
-evidence or confident dominance, never below the minimum set size), removal of invented citations, the learning
-loop narrowing uncertainty, the metrics, the reports, the Ollama client (schema output, retries) and the full
-`compare` command. GitHub Actions runs them on every push.
+evidence or confident dominance, never below the minimum set size), removal of invented citations, required
+citations, the separate must step, the learning loop narrowing uncertainty, the answer key and other metrics,
+the reports, the Ollama client (streamed schema output, retries) and the full `compare` command. GitHub Actions runs them on every push.
 
 ## Limitations
 

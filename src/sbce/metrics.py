@@ -8,6 +8,9 @@ kb_consistency      LLM-as-judge: are the score rationales consistent with the k
 repeated_mistakes   known failed concepts (eval/known_lessons.yaml) still in the final recommendation
 caught_mistakes     known failed concepts that were generated and then eliminated with a reason
 traceable_drops     share of eliminations with a stated reason and cited evidence or a dominating rival
+infeasible_in_final concepts in the final set that the answer key (eval/answer_key.yaml) marks infeasible
+false_eliminations  eliminated concepts that the answer key marks feasible
+correct_eliminations eliminated concepts that the answer key marks infeasible
 """
 from __future__ import annotations
 
@@ -41,8 +44,27 @@ def grounding(res: RunResult) -> float:
 
 
 def matches_lesson(c: Concept, keywords: list[str]) -> bool:
-    text = f"{c.name} {c.principle} {c.description}".lower()
+    """Name and principle only: descriptions often mention other concepts ("unlike rubber mounts ...")."""
+    text = f"{c.name} {c.principle}".lower()
     return any(k.lower() in text for k in keywords)
+
+
+def classify(c: Concept, key: list[dict]) -> tuple[str | None, str | None]:
+    """(family, label) of the first answer-key entry whose keywords match, else (None, None)."""
+    for entry in key:
+        if matches_lesson(c, entry["keywords"]):
+            return entry["family"], entry["label"]
+    return None, None
+
+
+def answer_key_outcomes(res: RunResult, key: list[dict]) -> dict[str, int]:
+    label = {cid: classify(c, key)[1] for cid, c in res.concepts.items()}
+    dropped = [e.concept_id for e in res.eliminations]
+    return {"infeasible_in_final": sum(label[c] == "infeasible" for c in res.final),
+            "feasible_in_final": sum(label[c] == "feasible" for c in res.final),
+            "unclassified_in_final": sum(label[c] is None for c in res.final),
+            "false_eliminations": sum(label[c] == "feasible" for c in dropped),
+            "correct_eliminations": sum(label[c] == "infeasible" for c in dropped)}
 
 
 def lesson_outcomes(res: RunResult, lessons: list[dict]) -> dict[str, int]:
@@ -83,12 +105,14 @@ def kb_consistency(res: RunResult, kb: KnowledgeBase, llm: LLM, samples: int, se
 
 
 def summarize(res: RunResult, kb: KnowledgeBase, llm_metrics: LLM, lessons: list[dict], judge_samples: int,
-              seed: int = 0) -> dict:
+              seed: int = 0, key: list[dict] | None = None) -> dict:
     lo = lesson_outcomes(res, lessons)
     return {
         "method": res.method,
         "n_concepts": len(res.concepts),
+        "concepts": {cid: f"{c.name} ({c.principle})" for cid, c in res.concepts.items()},
         "final": [res.concepts[c].name for c in res.final],
+        **(answer_key_outcomes(res, key) if key else {}),
         "diversity": diversity(list(res.concepts.values()), llm_metrics),
         "grounding": grounding(res),
         "kb_consistency": kb_consistency(res, kb, llm_metrics, judge_samples, seed),

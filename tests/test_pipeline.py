@@ -87,3 +87,83 @@ def test_required_citations_are_enforced_by_the_schema(brief, kb, llm, cfg):
         StrictEvaluation.model_validate({"scores": [{"criterion": "mass", "low": 2, "high": 3, "rationale": "x"}]})
     res = run_sbce(brief, kb, llm, cfg["criteria"], {**cfg["sbce"], "require_citations": True}, log=lambda *_: None)
     assert grounding(res) == 1.0 and res.final
+
+
+@pytest.fixture(scope="module")
+def answer_key():
+    import yaml
+    return yaml.safe_load((Path(__file__).resolve().parents[1] / "eval" / "answer_key.yaml").read_text(encoding="utf8"))
+
+
+@pytest.mark.parametrize("name, principle, family, label", [
+    ("Silicone Compounds", "rubber-like material", "silicone mounts", "feasible"),
+    ("Elastomer Mounts", "elastomeric isolators", "natural rubber mounts", "infeasible"),
+    ("Tuned Mass Absorbers", "Active vibration suppression", "tuned mass absorber", "uncertain"),
+    ("Active Cancellation", "active cancellation", "active cancellation", "infeasible"),
+    ("Handle Geometry Optimization", "handle shape and grip", "handle geometry", "infeasible"),
+    ("Dual Handle System", "two handles", None, None),
+])
+def test_answer_key_classifies_concepts_seen_in_real_runs(answer_key, name, principle, family, label):
+    from sbce.metrics import classify
+    from sbce.schemas import Concept
+    assert classify(Concept(name=name, principle=principle, description=""), answer_key) == (family, label)
+
+
+def test_tuned_mass_absorber_is_not_counted_as_a_known_failure(lessons):
+    from sbce.schemas import Concept
+    from sbce.metrics import matches_lesson
+    c = Concept(name="Tuned Mass Absorbers", principle="Active vibration suppression", description="")
+    assert not any(matches_lesson(c, lesson["keywords"]) for lesson in lessons)
+
+
+def test_answer_key_outcomes(sbce_run, brief, llm, cfg, answer_key):
+    from sbce.metrics import answer_key_outcomes
+    sbce = answer_key_outcomes(sbce_run, answer_key)
+    base = answer_key_outcomes(run_baseline(brief, llm, cfg["criteria"], cfg["sbce"]), answer_key)
+    assert sbce["infeasible_in_final"] == 0 and sbce["correct_eliminations"] >= 2
+    assert base["infeasible_in_final"] == 1                  # the fake baseline recommends active cancellation
+
+
+def test_summary_command_rebuilds_from_raw_results(tmp_path, monkeypatch):
+    monkeypatch.setattr(cli, "ROOT", Path(__file__).resolve().parents[1])
+    raw = [{"method": m, "final": ["A"], "grounding": g, "repeated_mistakes": 0, "llm_calls": c}
+           for m, g, c in [("sbce", 0.5, 16), ("sbce", 0.7, 14), ("baseline", 0.0, 1), ("baseline", 0.0, 1)]]
+    (tmp_path / "raw_results.json").write_text(json.dumps(raw))
+    cli.main(["summary", "--out", str(tmp_path), "--config", str(cli.ROOT / "config.yaml")])
+    text = (tmp_path / "summary.md").read_text()
+    assert "| LLM calls per run | 15.0 ± 1.4 | 1.0 ± 0.0 |" in text
+    assert "| Runs that recommended a known failed concept | 0 of 2 runs | 0 of 2 runs |" in text
+    assert "Citations required: no." in text
+
+
+def test_separate_must_step_uses_worked_comparisons(brief, kb, llm, cfg):
+    sb = {**cfg["sbce"], "must_check": "separate"}
+    res = run_sbce(brief, kb, llm, cfg["criteria"], sb, log=lambda *_: None)
+    drops = {res.concepts[e.concept_id].name: e for e in res.eliminations}
+    assert drops["Active cancellation handle"].rule == "must_violation"
+    assert "0.9 kg added vs 0.6 kg" in drops["Active cancellation handle"].reason
+    assert llm.stats.by_task["must"] == len(res.concepts)          # once per concept, reused in later rounds
+    first = res.rounds[0][res.final[0]]
+    assert len(first.must) == 4 and all(m.status == "met" for m in first.must)
+
+
+def test_violation_without_evidence_value_is_downgraded(brief, kb, cfg, monkeypatch):
+    from fake_llm import FakeLLM
+
+    class NotCovered(FakeLLM):
+        def _must(self, user: str) -> dict:
+            out = super()._must(user)
+            for c in out["checks"]:
+                c.update(status="violated", evidence_value="not covered")
+            return out
+
+    res = run_sbce(brief, kb, NotCovered(), cfg["criteria"], {**cfg["sbce"], "must_check": "separate"},
+                   log=lambda *_: None)
+    assert not any(e.rule == "must_violation" for e in res.eliminations)
+
+
+def test_evaluate_prompt_skips_musts_in_separate_mode():
+    from sbce import prompts
+    crit = [{"name": "a", "weight": 1, "description": ""}]
+    assert "Must requirements:" in prompts.evaluate("b", "c", crit, ["x"], "e", 0, None)
+    assert "separate step" in prompts.evaluate("b", "c", crit, [], "e", 0, None)

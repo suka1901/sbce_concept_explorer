@@ -39,22 +39,33 @@ def decision_log(res: RunResult, kb: KnowledgeBase, criteria: list[dict]) -> str
     return "\n".join(L) + "\n"
 
 
-def fmt(values: list) -> str:
+RUN_COUNTS = {"known_failures_proposed", "repeated_mistakes", "caught_mistakes"}
+
+
+def fmt(values: list, key: str = "") -> str:
     vals = [v for v in values if v is not None]
     if not vals:
         return "-"
-    if all(isinstance(v, int) for v in vals):
-        return f"{sum(vals)} / {len(vals)} runs"
+    if key in RUN_COUNTS:                                  # "in how many runs did this happen?"
+        return f"{sum(1 for v in vals if v)} of {len(vals)} runs"
     m = statistics.mean(vals)
-    return f"{m:.2f} ± {statistics.stdev(vals):.2f}" if len(vals) > 1 else f"{m:.2f}"
+    sd = statistics.stdev(vals) if len(vals) > 1 else 0.0
+    if all(isinstance(v, int) for v in vals):
+        return f"{m:.1f} ± {sd:.1f}"
+    return f"{m:.2f} ± {sd:.2f}"
 
 
 ROWS = [("diversity", "Concept diversity (0-1, higher = broader)"),
         ("grounding", "Scores citing evidence"),
         ("kb_consistency", "Consistent with knowledge base (LLM judge)"),
-        ("known_failures_proposed", "Known failed concepts proposed"),
-        ("repeated_mistakes", "Known failed concepts in final recommendation"),
-        ("caught_mistakes", "Known failed concepts eliminated with a reason"),
+        ("known_failures_proposed", "Runs that proposed a known failed concept"),
+        ("repeated_mistakes", "Runs that recommended a known failed concept"),
+        ("caught_mistakes", "Runs that eliminated a known failed concept with a reason"),
+        ("feasible_in_final", "Feasible concepts in final set (answer key)"),
+        ("infeasible_in_final", "Infeasible concepts in final set (answer key)"),
+        ("unclassified_in_final", "Unclassified concepts in final set"),
+        ("correct_eliminations", "Correct eliminations (infeasible dropped)"),
+        ("false_eliminations", "False eliminations (feasible dropped)"),
         ("traceable_drops", "Eliminations with reason and evidence"),
         ("llm_calls", "LLM calls per run"),
         ("retries", "Retries after invalid JSON per run"),
@@ -67,7 +78,7 @@ def comparison(runs: dict[str, list[dict]], model: str) -> str:
     L = ["# Results", "", f"Model: `{model}` via Ollama, {len(runs[methods[0]])} runs per method.", "",
          "| Metric | " + " | ".join(methods) + " |", "|---|" + "---|" * len(methods)]
     for key, label in ROWS:
-        L.append(f"| {label} | " + " | ".join(fmt([r.get(key) for r in runs[m]]) for m in methods) + " |")
+        L.append(f"| {label} | " + " | ".join(fmt([r.get(key) for r in runs[m]], key) for m in methods) + " |")
     L += ["", "Final recommendations per run:", ""]
     for m in methods:
         for i, r in enumerate(runs[m]):

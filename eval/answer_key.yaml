@@ -1,0 +1,34 @@
+# Reference judgement: can each kind of concept meet the MUST requirements of data/brief.md, according to the
+# knowledge base? Written by hand from the notes, so a run's narrowing can be checked against it.
+# The brief needs about 47 % lower vibration (7.5 -> 4.0 m/s2), at most 0.6 kg added, -15..+40 degC, 500 h dust/rain.
+# Matched against a concept's name and principle; the FIRST matching entry wins, so specific entries come first.
+- family: silicone mounts
+  label: feasible          # 30-50 % (upper part reaches the target), keeps stiffness to -30 degC, +0.1 kg
+  keywords: [silicone]
+- family: parallel linkage handle
+  label: feasible          # 60-75 %, +0.5 kg, passed 500 h dust test with sealed bushings
+  keywords: [linkage, parallel link, decoupled handle]
+- family: steel spring suspension
+  label: feasible          # 40-60 %, +0.25 kg, temperature-stable, boots solve dust
+  keywords: [steel spring, coil spring, spring isolator, spring suspension, spring handle]
+- family: active cancellation
+  label: infeasible        # +0.9 kg battery, failed dust test (post-mortem)
+  keywords: [active cancellation, active vibration cancellation, actuator, counter-force, electromagnetic]
+- family: added ballast
+  label: infeasible        # 1.2 kg for only 20 % (post-mortem)
+  keywords: [ballast, added mass, extra mass, heavier housing]
+- family: tuned mass absorber
+  label: uncertain         # 50-70 % at one speed, 10-20 % otherwise; 0.3-0.8 kg
+  keywords: [tuned mass, mass damper, mass absorber, dynamic absorber, dynamic vibration absorber]
+- family: source balancing
+  label: uncertain         # 20-40 % alone; drive-train change (a should, not a must)
+  keywords: [balanc, counter-rotating, source]
+- family: natural rubber mounts
+  label: infeasible        # stiffen and crack at -15 degC (field report)
+  keywords: [natural rubber, rubber mount, rubber isolator, elastomer]
+- family: handle geometry
+  label: infeasible        # 5-10 % only
+  keywords: [handle geometry, grip, ergonomic, handle design, handle shape]
+- family: damping layers
+  label: infeasible        # 10-20 %, weak in cold
+  keywords: [viscoelastic, damping layer, damping material, dampening material, coating, constrained-layer]

@@ -10,9 +10,8 @@ import hashlib
 import re
 
 import numpy as np
-from pydantic import BaseModel
 
-from sbce.llm import CallStats, task_of
+from sbce.llm import M, CallStats, task_of
 
 CONCEPTS = [
     ("Steel spring handle suspension", "coil springs with boots", 4, 4, 4, 4, 4),
@@ -47,7 +46,7 @@ class FakeLLM:
         return out
 
     # ---- chat
-    def chat_json(self, system: str, user: str, model: type[BaseModel]):
+    def chat_json(self, system: str, user: str, model: type[M]) -> M:
         task = task_of(user)
         self.stats.count(task)
         return model.model_validate(getattr(self, f"_{task}")(user))
@@ -77,6 +76,19 @@ class FakeLLM:
             if hit and pm.split("_")[0] in name.lower():
                 must.append({"requirement": req, "status": "violated", "evidence_ids": hit[:1], "reason": "see post-mortem"})
         return {"concept_id": "ignored", "scores": scores, "must": must}
+
+    def _must(self, user: str) -> dict:
+        name = re.search(r"Concept:\n\w+: (.+?) \(", user).group(1)          # type: ignore[union-attr]
+        checks = []
+        for block in re.split(r"\n(?=Requirement \d+: )", user)[1:]:
+            req = block.split("\n", 1)[0].split(": ", 1)[1]
+            ids = ids_in(block)
+            pm = [i for i in ids if i.startswith(("active_cancellation_postmortem", "added_mass_postmortem"))]
+            bad = pm and any(w in name.lower() for w in ("active", "ballast"))
+            checks.append({"requirement": req, "evidence_value": "0.9 kg added" if bad else "0.25 kg added",
+                           "limit": "0.6 kg", "comparison": "above the limit" if bad else "below the limit",
+                           "status": "violated" if bad else "met", "evidence_ids": (pm if bad else ids)[:1]})
+        return {"checks": checks}
 
     def _baseline(self, user: str) -> dict:
         concepts = [{"id": f"C{i + 1}", "name": n, "principle": p, "description": f"{n}."} for i, (n, p, *_) in enumerate(CONCEPTS)]

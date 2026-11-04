@@ -44,6 +44,12 @@ def evaluate(brief: str, concept: str, criteria: list[dict], must: list[str], ev
     cite = ("\nEvery score must cite at least one chunk id that informed it. If the evidence says little about a "
             "criterion, cite the closest chunk and keep the range wide.\n" if require_citations else "")
     musts = "\n".join(f"- {m}" for m in must)
+    must_part = (f"""
+Then check each must requirement and give status 'met', 'violated' or 'unclear'. Use 'violated' only when the
+evidence clearly shows it, and cite that evidence.
+Must requirements:
+{musts}
+""" if must else "\nLeave \"must\" as an empty list; must requirements are checked in a separate step.\n")
     return f"""TASK: evaluate
 Round: {round_no}
 Design brief:
@@ -59,14 +65,36 @@ Score the concept on each criterion from 1 (poor) to 5 (excellent) as a range: l
 high = optimistic. A wide range means uncertainty; narrow it only when evidence supports it.{cite}
 Criteria:
 {criteria_text(criteria)}
-
-Then check each must requirement and give status 'met', 'violated' or 'unclear'. Use 'violated' only when the
-evidence clearly shows it, and cite that evidence.
-Must requirements:
-{musts}
-
+{must_part}
 Return {{"concept_id": "...", "scores": [{{"criterion", "low", "high", "evidence_ids", "rationale"}}],
 "must": [{{"requirement", "status", "evidence_ids", "reason"}}]}}."""
+
+
+def must_check(brief: str, concept: str, blocks: list[tuple[str, str]]) -> str:
+    """blocks: (requirement, evidence retrieved for this concept and this requirement)."""
+    parts = "\n\n".join(f"Requirement {i}: {req}\nEvidence:\n{ev or '(nothing found)'}"
+                         for i, (req, ev) in enumerate(blocks, start=1))
+    return f"""TASK: must
+Design brief:
+{brief}
+
+Concept:
+{concept}
+
+Check the concept against each must requirement, using only the evidence given under that requirement.
+For each requirement fill in:
+- evidence_value: what the evidence says for this kind of concept, with numbers and units ('not covered' if nothing)
+- limit: the limit in the requirement, with number and unit
+- comparison: an explicit comparison of the two, e.g. "0.25 kg added is below the 0.6 kg limit".
+  If the evidence gives a percentage reduction, convert it with the numbers in the brief
+  (e.g. 40 % lower than 7.5 m/s2 is 4.5 m/s2).
+- status: 'met' if the value satisfies the limit, 'violated' only if the evidence clearly shows it does not,
+  'unclear' if the evidence is missing or a range only partly meets the limit.
+- evidence_ids: the chunk ids you used.
+
+{parts}
+
+Return {{"checks": [{{"requirement", "evidence_value", "limit", "comparison", "status", "evidence_ids"}}]}}."""
 
 
 def baseline(brief: str, criteria: list[dict], n: int, k: int) -> str:

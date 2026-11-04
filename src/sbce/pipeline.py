@@ -19,7 +19,8 @@ import numpy as np
 from . import prompts
 from .kb import KnowledgeBase, normalize
 from .llm import LLM
-from .schemas import BaselineAnswer, Concept, ConceptList, Elimination, Evaluation, Queries, StrictEvaluation
+from .schemas import (BaselineAnswer, Concept, ConceptList, Elimination, Evaluation, MustCheck, MustReview, Queries,
+                      StrictEvaluation)
 
 
 # ---------------------------------------------------------------------------
@@ -170,19 +171,42 @@ def run_sbce(brief: str, kb: KnowledgeBase, llm: LLM, criteria: list[dict], sbce
 
     strict = bool(sbce.get("require_citations", False))
     schema: type[Evaluation] = StrictEvaluation if strict else Evaluation
+    separate = sbce.get("must_check", "inline") == "separate"
+    k_must = sbce.get("top_k_must", 2)
+
+    def check_musts(cid: str) -> list[MustCheck]:
+        """Separate must step: evidence per requirement, then a worked comparison per requirement."""
+        c = concepts[cid]
+        blocks, shown = [], set()
+        for req in must:
+            hits = kb.search(f"{c.name} {c.principle} {req}", k=k_must)
+            shown |= {h.id for h in hits}
+            res.evidence[cid] += [h.id for h in hits if h.id not in res.evidence[cid]]
+            blocks.append((req, kb.format([h.id for h in hits])))
+        review = llm.chat_json(prompts.SYSTEM, prompts.must_check(brief, concept_text(c), blocks), MustReview)
+        out = []
+        for chk in review.checks:
+            ids = clean_ids(chk.evidence_ids, shown)
+            violated = chk.status == "violated" and chk.evidence_value.strip().lower() != "not covered"
+            out.append(MustCheck(requirement=chk.requirement, status="violated" if violated else
+                                 ("unclear" if chk.status == "violated" else chk.status), evidence_ids=ids,
+                                 reason=f"{chk.evidence_value} vs {chk.limit}: {chk.comparison}"))
+        return out
 
     def assess(cid: str, round_no: int, new_ids: list[str], previous: Evaluation | None) -> Evaluation:
         res.evidence.setdefault(cid, list(dict.fromkeys(concepts[cid].evidence_ids)))
         res.evidence[cid] += [i for i in new_ids if i not in res.evidence[cid]]
         shown = res.evidence[cid]
         ev = llm.chat_json(prompts.SYSTEM, prompts.evaluate(
-            brief, concept_text(concepts[cid]), criteria, must, kb.format(shown), round_no,
+            brief, concept_text(concepts[cid]), criteria, [] if separate else must, kb.format(shown), round_no,
             previous.model_dump_json() if previous else None, strict), schema)
         ev.concept_id = cid
         for s in ev.scores:
             s.evidence_ids = clean_ids(s.evidence_ids, set(shown))
         for m in ev.must:
             m.evidence_ids = clean_ids(m.evidence_ids, set(shown))
+        if separate:
+            ev.must = check_musts(cid) if previous is None or not previous.must else previous.must
         return ev
 
     # round 0
