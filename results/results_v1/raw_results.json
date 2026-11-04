@@ -1,0 +1,128 @@
+[
+ {
+  "run": 0,
+  "method": "baseline",
+  "n_concepts": 6,
+  "final": [
+   "C1: Hand-Held Vibration Dampening System",
+   "C3: Dual Handle Vibration Cancelling System"
+  ],
+  "diversity": 0.22443270584387728,
+  "grounding": 0.0,
+  "kb_consistency": 0.55,
+  "known_failures_proposed": 1,
+  "repeated_mistakes": 1,
+  "caught_mistakes": 0,
+  "eliminations": 0,
+  "traceable_drops": null,
+  "llm_calls": 1,
+  "retries": 0,
+  "output_tokens": 1880,
+  "seconds": 61.9
+ },
+ {
+  "run": 0,
+  "method": "sbce",
+  "n_concepts": 6,
+  "final": [
+   "C2 - Elastomer Isolators",
+   "C5 - Handle Geometry and Grip"
+  ],
+  "diversity": 0.3057296136600535,
+  "grounding": 0.8,
+  "kb_consistency": 0.6,
+  "known_failures_proposed": 1,
+  "repeated_mistakes": 0,
+  "caught_mistakes": 1,
+  "eliminations": 1,
+  "traceable_drops": 1.0,
+  "llm_calls": 18,
+  "retries": 0,
+  "output_tokens": 12387,
+  "seconds": 418.8
+ },
+ {
+  "run": 1,
+  "method": "baseline",
+  "n_concepts": 6,
+  "final": [
+   "C1: Mass Damper",
+   "C4: Handle Design Optimization"
+  ],
+  "diversity": 0.23966076536277606,
+  "grounding": 0.0,
+  "kb_consistency": 0.55,
+  "known_failures_proposed": 1,
+  "repeated_mistakes": 0,
+  "caught_mistakes": 0,
+  "eliminations": 0,
+  "traceable_drops": null,
+  "llm_calls": 1,
+  "retries": 0,
+  "output_tokens": 1740,
+  "seconds": 56.1
+ },
+ {
+  "run": 1,
+  "method": "sbce",
+  "n_concepts": 6,
+  "final": [
+   "C4",
+   "C5"
+  ],
+  "diversity": 0.2747330035364653,
+  "grounding": 0.9,
+  "kb_consistency": 0.6,
+  "known_failures_proposed": 1,
+  "repeated_mistakes": 0,
+  "caught_mistakes": 1,
+  "eliminations": 1,
+  "traceable_drops": 1.0,
+  "llm_calls": 18,
+  "retries": 0,
+  "output_tokens": 10373,
+  "seconds": 358.7
+ },
+ {
+  "run": 2,
+  "method": "baseline",
+  "n_concepts": 6,
+  "final": [
+   "C2: Vibration Dampening Material",
+   "C6: Handle Design Optimization"
+  ],
+  "diversity": 0.26664324537054446,
+  "grounding": 0.0,
+  "kb_consistency": 0.5,
+  "known_failures_proposed": 1,
+  "repeated_mistakes": 0,
+  "caught_mistakes": 0,
+  "eliminations": 0,
+  "traceable_drops": null,
+  "llm_calls": 1,
+  "retries": 0,
+  "output_tokens": 1520,
+  "seconds": 49.3
+ },
+ {
+  "run": 2,
+  "method": "sbce",
+  "n_concepts": 6,
+  "final": [
+   "C2 - Elastomer Mounts",
+   "C1 - Handle Geometry Optimization"
+  ],
+  "diversity": 0.28647078899939005,
+  "grounding": 0.6896551724137931,
+  "kb_consistency": 0.7,
+  "known_failures_proposed": 1,
+  "repeated_mistakes": 0,
+  "caught_mistakes": 1,
+  "eliminations": 2,
+  "traceable_drops": 1.0,
+  "llm_calls": 16,
+  "retries": 0,
+  "output_tokens": 10045,
+  "seconds": 331.5
+ }
+]

@@ -47,6 +47,33 @@ concept notes, test notes, a cold-weather field report, cost data, and **post-mo
 (active vibration cancellation and added ballast mass). Numbers are illustrative. Add your own Markdown files;
 every `##` section becomes a retrievable chunk.
 
+## Research questions
+
+The demonstrator is improved step by step. Each question below is answered by a run that anyone can repeat
+(see [Versions](#versions)), and the answers are updated as new results come in.
+
+| # | Question | How it is measured | Status |
+|---|---|---|---|
+| Q1 | Does grounding concept evaluation in the team's knowledge base make it more traceable and more correct than a single prompt? | scores citing evidence; consistency with the knowledge base (LLM judge) | v1: yes, 0.55 vs 0.00 cited, 0.68 vs 0.52 consistent |
+| Q2 | Does set-based narrowing stop the tool from repeating documented failures? | known failed concepts proposed / eliminated with a reason / recommended | v1: active cancellation eliminated with a cited post-mortem every time it was proposed; neither method recommended a known failure |
+| Q3 | Is the final set feasible, and are the eliminations correct? | answer key: infeasible concepts in final set, correct and false eliminations | v1: **no better than the baseline** (1.0 infeasible concept per final set for both); 2 feasible concepts wrongly eliminated |
+| Q4 | Does requiring a citation for every score raise grounding without making the scores less correct? | v2 vs v1: grounding and consistency | open |
+| Q5 | Does a separate must-check step with worked comparisons remove false eliminations and infeasible survivors? | v3 vs v1: answer-key metrics | open |
+| Q6 | Does a bigger local model fix the must-check errors, or does the method matter more than model size? | v3 with `qwen2.5:7b` vs `qwen2.5:14b`, and v1 with 14B if needed | open |
+| Q7 | What does the structure cost? | LLM calls, retries, generated tokens and time per run | v1: about 16 calls per SBCE run vs 1; the single long baseline answer is slower per call and needs retries (re-measured from v3 on) |
+
+## Optimisation log
+
+| Date | Step | Observation that led to it | Change |
+|---|---|---|---|
+| 2026-11-04 | v0 | First run on a laptop CPU timed out while generating concepts | Streamed replies, explicit 8k context, `qwen2.5:3b` for CPU; experiments moved to a Colab T4 GPU with `qwen2.5:7b` |
+| 2026-11-04 | v1 | First results (3 runs): grounding varied from 0.33 to 0.71 between runs | Kept as the reference version |
+| 2026-11-04 | metrics fix | The known-failure check matched the bare word "active" ("tuned mass absorbers, active vibration suppression"); counts were summed instead of averaged; run time included judging | Phrase matching on name and principle only, per-run means, timing of the method alone, retries and tokens logged |
+| 2026-11-04 | answer key | Decision logs showed infeasible concepts (natural rubber at -15 degC, handle geometry with 5-10 % reduction) in final sets, which no metric caught | `eval/answer_key.yaml` with feasible / infeasible / uncertain concept types and four new metrics |
+| 2026-11-04 | v2 | Citations were optional and the model often left them out | `require_citations: true` enforces at least one citation per score in the output schema |
+| 2026-11-04 | v3 | The model compared numbers wrongly ("0.25 kg is above the 0.6 kg limit") and never looked up evidence for some requirements | Separate must-check step: evidence per requirement and a worked comparison (value, limit, comparison, verdict); no violation without a value from the evidence |
+| next | 14B | Q6 | Rerun v3 with `qwen2.5:14b` on the same Colab GPU |
+
 ## Versions
 
 The method was improved in steps, and each step is a setting in `config.yaml`, so every version can be rerun:
@@ -78,8 +105,23 @@ and never looked up the evidence behind some requirements, so concepts that fail
 
 ## Results
 
-<!-- Run `sbce compare` and paste results/summary.md here. -->
-_Not run yet._
+### v1 (`qwen2.5:7b`, Colab T4, 3 runs per method) - preliminary
+
+Measured before the metric fixes; the answer-key rows were scored by hand from the decision logs.
+
+| Metric | SBCE pipeline | Single prompt |
+|---|---|---|
+| Concept diversity | 0.29 ± 0.04 | 0.25 ± 0.02 |
+| Scores citing evidence | 0.55 ± 0.20 | 0.00 |
+| Consistent with knowledge base (LLM judge) | 0.68 ± 0.08 | 0.52 ± 0.03 |
+| Runs that recommended a known failed concept | 0 of 3 | 0 of 3 |
+| Infeasible concepts in final set (answer key, mean) | 1.0 | 1.0 |
+| False eliminations (feasible dropped, total) | 2 | - |
+| LLM calls per run | 16 | 1 |
+
+### v3 and model size
+
+_Pending: `sbce compare --out results_v3`, then the same with `qwen2.5:14b`._
 
 ## Run it
 
