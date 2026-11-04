@@ -71,7 +71,7 @@ def test_compare_command_end_to_end(tmp_path, monkeypatch, cfg):
     from fake_llm import FakeLLM
     monkeypatch.setattr(cli, "make_llm", lambda *a, **k: FakeLLM())
     cli.main(["compare", "--out", str(tmp_path), "--repeats", "2"])
-    raw = json.loads((tmp_path / "raw_results.json").read_text())
+    raw = json.loads((tmp_path / "raw_results.json").read_text(encoding="utf8"))
     assert len(raw) == 4 and (tmp_path / "summary.md").exists() and (tmp_path / "decision_log_run1.md").exists()
     sbce_rows = [r for r in raw if r["method"] == "sbce"]
     assert all(r["repeated_mistakes"] == 0 for r in sbce_rows)
@@ -128,9 +128,9 @@ def test_summary_command_rebuilds_from_raw_results(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "ROOT", Path(__file__).resolve().parents[1])
     raw = [{"method": m, "final": ["A"], "grounding": g, "repeated_mistakes": 0, "llm_calls": c}
            for m, g, c in [("sbce", 0.5, 16), ("sbce", 0.7, 14), ("baseline", 0.0, 1), ("baseline", 0.0, 1)]]
-    (tmp_path / "raw_results.json").write_text(json.dumps(raw))
+    (tmp_path / "raw_results.json").write_text(json.dumps(raw), encoding="utf8")
     cli.main(["summary", "--out", str(tmp_path), "--config", str(cli.ROOT / "config.yaml")])
-    text = (tmp_path / "summary.md").read_text()
+    text = (tmp_path / "summary.md").read_text(encoding="utf8")  # "±" breaks on Windows otherwise
     assert "| LLM calls per run | 15.0 ± 1.4 | 1.0 ± 0.0 |" in text
     assert "| Runs that recommended a known failed concept | 0 of 2 runs | 0 of 2 runs |" in text
     assert "Citations required: no." in text
