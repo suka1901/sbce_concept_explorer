@@ -1,0 +1,44 @@
+# SBCE concept explorer - settings
+
+llm:
+  host: http://localhost:11434
+  model: qwen2.5:7b            # 3b is faster in a CPU; 7b gives better answers
+  embed_model: nomic-embed-text
+  temperature: 0.7
+  timeout_s: 600                # max silence between streamed tokens
+  num_ctx: 8192                 # context window; prompts with evidence need more than Ollama's default
+  progress: true                # print dots while the model is writing
+
+brief: data/brief.md
+knowledge_dir: data/knowledge
+
+criteria:                       # scored 1 (poor) to 5 (excellent); higher is always better
+  - name: vibration_reduction
+    weight: 0.35
+    description: expected reduction of handle vibration in the standard test
+  - name: mass
+    weight: 0.20
+    description: 5 = no added mass, 1 = far above the mass limit
+  - name: cost
+    weight: 0.15
+    description: 5 = negligible unit cost increase, 1 = far above the cost limit
+  - name: robustness
+    weight: 0.20
+    description: works over the temperature range and survives dust and rain
+  - name: development_effort
+    weight: 0.10
+    description: 5 = small change to today's design, 1 = new drive train or electronics
+
+sbce:
+  n_concepts: 6                 # concepts generated in round 0
+  max_rounds: 2                 # learning-loop rounds after the first evaluation
+  target_set_size: 2            # stop narrowing when this many concepts remain
+  min_keep: 2                   # never eliminate below this many
+  dominance_margin: 0.0         # eliminate i if pessimistic(j) > optimistic(i) + margin
+  top_k_scout: 8                # evidence chunks for the first scouting step
+  top_k_round: 3                # new evidence chunks per concept per round
+  dedupe_similarity: 0.92       # drop near-duplicate concepts (cosine of embeddings)
+
+experiment:
+  repeats: 3                    # runs of each method for the comparison
+  judge_samples: 10             # rationales per run checked by the LLM judge

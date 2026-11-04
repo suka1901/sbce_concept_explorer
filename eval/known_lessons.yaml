@@ -1,0 +1,6 @@
+# Concepts the knowledge base documents as failed under this brief.
+# A run "repeats a known mistake" if a matching concept is still in its final recommendation.
+- lesson: active_cancellation_postmortem
+  keywords: [active, actuator, cancellation, counter-force, electromagnetic]
+- lesson: added_mass_postmortem
+  keywords: [ballast, added mass, extra mass, heavier housing, increase mass, increased mass]

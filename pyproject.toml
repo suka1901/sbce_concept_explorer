@@ -1,0 +1,29 @@
+[project]
+name = "sbce-concept-explorer"
+version = "0.1.0"
+description = "AI-supported set-based concept exploration with RAG and a local LLM (demonstrator)"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.26", "pydantic>=2.5", "pyyaml>=6.0", "requests>=2.31"]
+
+[project.scripts]
+sbce = "sbce.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra --strict-markers"
+
+[tool.coverage.run]
+source = ["src"]
+
+[tool.pyright]
+include = ["src", "tests"]
+extraPaths = ["src"]
+typeCheckingMode = "standard"
