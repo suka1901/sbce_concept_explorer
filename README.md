@@ -62,18 +62,6 @@ The demonstrator is improved step by step. Each question below is answered by a 
 | Q6 | Does a bigger local model fix the must-check errors, or does the method matter more than model size? | v3 with `qwen2.5:7b` vs `qwen2.5:14b`, and v1 with 14B if needed | open |
 | Q7 | What does the structure cost? | LLM calls, retries, generated tokens and time per run | about 17 calls and 6-7x the time of a single prompt (370-390 s vs 56 s per run), no JSON retries |
 
-## Optimisation log
-
-| Date | Step | Observation that led to it | Change |
-|---|---|---|---|
-| 2026-11-04 | v0 | First run on a laptop CPU timed out while generating concepts | Streamed replies, explicit 8k context, `qwen2.5:3b` for CPU; experiments moved to a Colab T4 GPU with `qwen2.5:7b` |
-| 2026-11-04 | v1 | First results (3 runs): grounding varied from 0.33 to 0.71 between runs | Kept as the reference version |
-| 2026-11-04 | metrics fix | The known-failure check matched the bare word "active" ("tuned mass absorbers, active vibration suppression"); counts were summed instead of averaged; run time included judging | Phrase matching on name and principle only, per-run means, timing of the method alone, retries and tokens logged |
-| 2026-11-04 | answer key | Decision logs showed infeasible concepts (natural rubber at -15 degC, handle geometry with 5-10 % reduction) in final sets, which no metric caught | `eval/answer_key.yaml` with feasible / infeasible / uncertain concept types and four new metrics |
-| 2026-11-04 | v2 | Citations were optional and the model often left them out | `require_citations: true` enforces at least one citation per score in the output schema |
-| 2026-11-04 | v3 | The model compared numbers wrongly ("0.25 kg is above the 0.6 kg limit") and never looked up evidence for some requirements | Separate must-check step: evidence per requirement and a worked comparison (value, limit, comparison, verdict); no violation without a value from the evidence |
-| next | 14B | Q6 | Rerun v3 with `qwen2.5:14b` on the same Colab GPU |
-
 ## Versions
 
 The method was improved in steps, and each step is a setting in `config.yaml`, so every version can be rerun:
