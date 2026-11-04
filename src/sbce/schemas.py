@@ -50,6 +50,15 @@ class Evaluation(BaseModel):
     must: list[MustCheck] = Field(default_factory=list)
 
 
+class StrictCriterionScore(CriterionScore):
+    """Variant used when `sbce.require_citations` is on: every score must cite at least one chunk."""
+    evidence_ids: list[str] = Field(min_length=1, description="at least one chunk id from the evidence")
+
+
+class StrictEvaluation(Evaluation):
+    scores: list[StrictCriterionScore]  # pyright: ignore[reportIncompatibleVariableOverride]
+
+
 class Elimination(BaseModel):
     concept_id: str
     round: int

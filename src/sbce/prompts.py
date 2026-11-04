@@ -39,8 +39,10 @@ Return {{"concepts": [...]}}."""
 
 
 def evaluate(brief: str, concept: str, criteria: list[dict], must: list[str], evidence: str,
-             round_no: int, previous: str | None) -> str:
+             round_no: int, previous: str | None, require_citations: bool = False) -> str:
     prev = f"\nYour previous evaluation (update it with the new evidence):\n{previous}\n" if previous else ""
+    cite = ("\nEvery score must cite at least one chunk id that informed it. If the evidence says little about a "
+            "criterion, cite the closest chunk and keep the range wide.\n" if require_citations else "")
     musts = "\n".join(f"- {m}" for m in must)
     return f"""TASK: evaluate
 Round: {round_no}
@@ -54,7 +56,7 @@ Evidence:
 {evidence}
 {prev}
 Score the concept on each criterion from 1 (poor) to 5 (excellent) as a range: low = pessimistic,
-high = optimistic. A wide range means uncertainty; narrow it only when evidence supports it.
+high = optimistic. A wide range means uncertainty; narrow it only when evidence supports it.{cite}
 Criteria:
 {criteria_text(criteria)}
 

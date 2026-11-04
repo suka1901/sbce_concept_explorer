@@ -75,3 +75,15 @@ def test_compare_command_end_to_end(tmp_path, monkeypatch, cfg):
     assert len(raw) == 4 and (tmp_path / "summary.md").exists() and (tmp_path / "decision_log_run1.md").exists()
     sbce_rows = [r for r in raw if r["method"] == "sbce"]
     assert all(r["repeated_mistakes"] == 0 for r in sbce_rows)
+
+
+def test_required_citations_are_enforced_by_the_schema(brief, kb, llm, cfg):
+    from pydantic import ValidationError
+
+    from sbce.schemas import StrictEvaluation
+    schema = StrictEvaluation.model_json_schema()
+    assert schema["$defs"]["StrictCriterionScore"]["properties"]["evidence_ids"]["minItems"] == 1
+    with pytest.raises(ValidationError):
+        StrictEvaluation.model_validate({"scores": [{"criterion": "mass", "low": 2, "high": 3, "rationale": "x"}]})
+    res = run_sbce(brief, kb, llm, cfg["criteria"], {**cfg["sbce"], "require_citations": True}, log=lambda *_: None)
+    assert grounding(res) == 1.0 and res.final

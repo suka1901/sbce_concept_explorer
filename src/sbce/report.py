@@ -57,7 +57,9 @@ ROWS = [("diversity", "Concept diversity (0-1, higher = broader)"),
         ("caught_mistakes", "Known failed concepts eliminated with a reason"),
         ("traceable_drops", "Eliminations with reason and evidence"),
         ("llm_calls", "LLM calls per run"),
-        ("seconds", "LLM time per run (s)")]
+        ("retries", "Retries after invalid JSON per run"),
+        ("output_tokens", "Generated tokens per run"),
+        ("seconds", "Time per run, without judging (s)")]
 
 
 def comparison(runs: dict[str, list[dict]], model: str) -> str:

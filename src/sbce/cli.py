@@ -75,14 +75,17 @@ def cmd_compare(cfg: dict, out: Path, repeats: int | None) -> None:
             t0 = time.perf_counter()
             res = (run_sbce(brief, kb, llm, cfg["criteria"], cfg["sbce"], log=lambda *_: None) if method == "sbce"
                    else run_baseline(brief, llm, cfg["criteria"], cfg["sbce"]))
+            seconds = round(time.perf_counter() - t0, 1)            # the method only, without judging
             m = summarize(res, kb, judge, lessons, cfg["experiment"]["judge_samples"], seed=r)
-            m.update(llm_calls=llm.stats.calls, seconds=round(time.perf_counter() - t0, 1))
+            m.update(llm_calls=llm.stats.calls, retries=llm.stats.retries, output_tokens=llm.stats.output_tokens,
+                     seconds=seconds)
             runs[method].append(m)
             raw.append({"run": r, **m})
             if method == "sbce":
                 (out / f"decision_log_run{r + 1}.md").write_text(decision_log(res, kb, cfg["criteria"]), encoding="utf8")
             print(f"run {r + 1}/{repeats} {method:8s}: final={m['final']} grounding={m['grounding']:.2f} "
-                  f"repeated_mistakes={m['repeated_mistakes']}")
+                  f"repeated_mistakes={m['repeated_mistakes']} time={seconds:.0f}s calls={llm.stats.calls} "
+                  f"retries={llm.stats.retries}")
     (out / "raw_results.json").write_text(json.dumps(raw, indent=1), encoding="utf8")
     summary = comparison({"SBCE pipeline": runs["sbce"], "Single prompt": runs["baseline"]}, cfg["llm"]["model"])
     (out / "summary.md").write_text(summary, encoding="utf8")

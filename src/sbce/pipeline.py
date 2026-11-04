@@ -19,7 +19,7 @@ import numpy as np
 from . import prompts
 from .kb import KnowledgeBase, normalize
 from .llm import LLM
-from .schemas import BaselineAnswer, Concept, ConceptList, Elimination, Evaluation, Queries
+from .schemas import BaselineAnswer, Concept, ConceptList, Elimination, Evaluation, Queries, StrictEvaluation
 
 
 # ---------------------------------------------------------------------------
@@ -168,13 +168,16 @@ def run_sbce(brief: str, kb: KnowledgeBase, llm: LLM, criteria: list[dict], sbce
     log(f"generated {len(raw)} concepts, kept {len(concepts)} after de-duplication")
     res = RunResult("sbce", concepts, scout_queries=queries)
 
+    strict = bool(sbce.get("require_citations", False))
+    schema: type[Evaluation] = StrictEvaluation if strict else Evaluation
+
     def assess(cid: str, round_no: int, new_ids: list[str], previous: Evaluation | None) -> Evaluation:
         res.evidence.setdefault(cid, list(dict.fromkeys(concepts[cid].evidence_ids)))
         res.evidence[cid] += [i for i in new_ids if i not in res.evidence[cid]]
         shown = res.evidence[cid]
         ev = llm.chat_json(prompts.SYSTEM, prompts.evaluate(
             brief, concept_text(concepts[cid]), criteria, must, kb.format(shown), round_no,
-            previous.model_dump_json() if previous else None), Evaluation)
+            previous.model_dump_json() if previous else None, strict), schema)
         ev.concept_id = cid
         for s in ev.scores:
             s.evidence_ids = clean_ids(s.evidence_ids, set(shown))

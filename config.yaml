@@ -38,6 +38,7 @@ sbce:
   top_k_scout: 8                # evidence chunks for the first scouting step
   top_k_round: 3                # new evidence chunks per concept per round
   dedupe_similarity: 0.92       # drop near-duplicate concepts (cosine of embeddings)
+  require_citations: false      # true = every score must cite at least one knowledge-base chunk (version 2)
 
 experiment:
   repeats: 3                    # runs of each method for the comparison
